@@ -51,7 +51,7 @@ runs:
       id: setup-install-line
       shell: ${{ inputs.shell }}
       run: |
-        _INSTALL_LINE="'git+https://github.com/Becksteinlab/imdreader@${inputs.branch}#egg=imdreader'"
+        _INSTALL_LINE="'git+https://github.com/Becksteinlab/imdreader@${{ inputs.branch }}#egg=imdreader'"
         echo "Install line: ${_INSTALL_LINE}"
         echo "install-line=${_INSTALL_LINE}" >> $GITHUB_OUTPUT
     
