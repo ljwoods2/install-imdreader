@@ -47,18 +47,6 @@ runs:
 
         echo "installer=${INSTALLER}" >> $GITHUB_OUTPUT
 
-    - name: Uninstall pre-existing versions
-      shell: ${{ inputs.shell }}
-      run: |
-        # uninstall tests even if not reinstalling,
-        # as versions can clash
-        # we may need to continuously re-uninstall if there are multiple versions
-
-        conda remove --force imdreader --yes || true
-        while [[ $(python -m pip list | grep "^imdreader") ]] ; do
-          python -m pip uninstall -y imdreader
-        done
-
     - name: Setup install lines
       id: setup-install-line
       shell: ${{ inputs.shell }}
