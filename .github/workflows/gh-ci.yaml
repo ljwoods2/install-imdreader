@@ -98,7 +98,7 @@ jobs:
       - name: Print version
         run: |
           
-          python -c "import imdreader; print(imdreader.__version__)''
+          python -c "import imdreader; print(imdreader.__version__)"
       
       - name: breakpoint on test failure
         if: failure()
