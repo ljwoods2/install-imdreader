@@ -1,0 +1,108 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+
+concurrency:
+  # Specific group naming so CI is only cancelled
+  # within same PR or on merge to main
+  group: "${{ github.ref }}-${{ github.head_ref }}-${{ github.workflow }}"
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -l {0}
+
+jobs:
+  gen-python-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      python-matrix: ${{ steps.get-compatible-python.outputs.python-versions }}
+      latest-python: ${{ steps.get-compatible-python.outputs.latest-python }}
+      oldest-python: ${{ steps.get-compatible-python.outputs.oldest-python }}
+      stable-python: ${{ steps.get-compatible-python.outputs.stable-python }}
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - id: get-compatible-python
+        uses: MDAnalysis/mdanalysis-compatible-python@main
+
+  main-tests:
+    runs-on: ${{ matrix.os }}
+    needs: gen-python-matrix
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ${{ fromJSON(needs.gen-python-matrix.outputs.python-matrix) }}
+        installer: ["pip", "micromamba"]
+        imdreader-branch: ["main"]
+    steps:
+      - uses: actions/checkout@v3
+  
+      - id: environment-setup
+        run: |
+          if [[ ${{ matrix.installer }} == 'pip' ]] ; then
+            USE_SHELL="bash"
+          else
+            USE_SHELL="bash -l {0}"
+          fi
+
+          INSTALL_VERSION=${{ matrix.imdreader-branch }}
+          
+          echo "action-install-branch=${INSTALL_VERSION}" >> $GITHUB_OUTPUT
+  
+      - name: Install mamba Python ${{ matrix.python-version }}
+        if: ${{ matrix.installer == 'micromamba' }}
+        uses: mamba-org/provision-with-micromamba@main
+        with:
+          environment-file: False
+          environment-name: imdreader
+          extra-specs: |
+            python==${{ matrix.python-version }}
+            pip
+          channels: conda-forge
+  
+      - name: Install conda Python ${{ matrix.python-version }}
+        if: ${{ matrix.installer == 'conda' }}
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+          add-pip-as-python-dependency: true
+          architecture: x64
+          mamba-version: "*"
+          channels: conda-forge, defaults
+          auto-update-conda: true
+          show-channel-urls: true
+  
+      - name: Setup Python ${{ matrix.python-version }}
+        if: ${{ matrix.installer == 'pip' }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+  
+      - id: Install
+        uses: ./
+        with:
+          branch: ${{ steps.environment-setup.outputs.action-install-branch }}
+          installer: ${{ matrix.installer }}
+          shell: ${{ steps.environment-setup.outputs.action-shell }}
+  
+      - name: Print version
+        run: |
+          
+          python -c "import imdreader; print(imdreader.__version__)''
+      
+      - name: breakpoint on test failure
+        if: failure()
+        uses: namespacelabs/breakpoint-action@v0
+        with:
+          duration: 30m
+          authorized-users: ljwoods2
