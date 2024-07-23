@@ -44,9 +44,6 @@ runs:
         esac
 
         INSTALLER="${{ inputs.installer }}"
-        if [[ ${{ inputs.version }} == "develop" ]] ; then
-          INSTALLER="pip"
-        fi
 
         echo "installer=${INSTALLER}" >> $GITHUB_OUTPUT
 
